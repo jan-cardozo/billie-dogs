@@ -54,9 +54,9 @@ class BillieDogs extends React.Component<{}, State> {
       <div>
         <img alt='dog' src={this.state.dogPhoto} />
       </div>
-      <h2>{'We ❤ our pups!'.split('').map((char) => {
+      <h2>{'We ❤ our pups!'.split('').map((char, key) => {
         const color = generator.next();
-        return <span style={{color: color}}>{char}</span>
+        return <span key={key} style={{color: color.value}}>{char}</span>
       })}</h2>
       <button onClick={this.fetchDog}>retrieve another</button>
     </div>);
