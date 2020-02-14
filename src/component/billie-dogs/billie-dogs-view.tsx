@@ -1,7 +1,9 @@
 import React from "react";
+import { generatorFactory } from "../../utils/generator-factory";
 
 interface State {
   dogPhoto: string;
+  breeds: string[];
 }
 
 const billieColors = [
@@ -11,21 +13,16 @@ const billieColors = [
   '#FF91FF'
 ];
 
-function* billieColorsGenerator(): Iterator<string, string> {
-  for (let i = 0; ; i++) {
-    yield billieColors[i%4];
-  }
-}
-
 class BillieDogs extends React.Component<{}, State> {
   constructor(props: any) {
     super(props)
     this.state = {
-      dogPhoto: ''
+      dogPhoto: '',
+      breeds: []
     }
   }
 
-  fetchDog = (): void => {
+  fetchRandomDog = (): void => {
     fetch('https://dog.ceo/api/breeds/image/random')
       .then((response) => {
         if (!response.ok) {
@@ -36,20 +33,44 @@ class BillieDogs extends React.Component<{}, State> {
       .then((json) => {
         this.setState({
           dogPhoto: json.message
+        });
+      })
+  }
+
+  fetchBreeds = () => {
+    fetch('https://dog.ceo/api/breeds/list/all')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error();
+        }
+        return response.json();
+      })
+      .then((json) => {
+        const breeds = [];
+        for (const [breed, subBreed] of Object.entries<string[]>(json.message)) {
+          breeds.push(breed);
+          subBreed.forEach((val) => {
+            const com = `${breed}-${val}`;
+            breeds.push(com);
+          });
+        }
+        this.setState({
+          breeds: breeds
         })
       })
   }
 
   handleClick = (): void => {
-    this.fetchDog();
+    this.fetchRandomDog();
   }
 
   componentDidMount = (): void => {
-    this.fetchDog();
+    this.fetchRandomDog();
+    this.fetchBreeds();
   }
 
   render = (): JSX.Element => {
-    const generator = billieColorsGenerator();
+    const generator = (generatorFactory(billieColors))();
     return (<div>
       <div>
         <img alt='dog' src={this.state.dogPhoto} />
@@ -58,7 +79,18 @@ class BillieDogs extends React.Component<{}, State> {
         const color = generator.next();
         return <span key={key} style={{color: color.value}}>{char}</span>
       })}</h2>
-      <button onClick={this.fetchDog}>retrieve another</button>
+      <button onClick={this.fetchRandomDog}>retrieve another</button>
+      <div>
+        Or select by breed
+        <div>
+          <select>
+            {this.state.breeds.map((breed, key) => {
+              return <option key={key} value={breed}>{breed}</option>;
+            })}
+          </select>
+          <button>search by breed</button>
+        </div>
+      </div>
     </div>);
   }
 }
