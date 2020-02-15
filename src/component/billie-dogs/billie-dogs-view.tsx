@@ -1,9 +1,14 @@
 import React from "react";
 import { generatorFactory } from "../../utils/generator-factory";
+import './billie-dogs.css'
 
 interface State {
   dogPhoto: string;
   breeds: string[];
+  selectedBreed: string | undefined;
+  invalidAction: boolean;
+  fetchPhotoError: boolean;
+  fetchBreedsError: boolean;
 }
 
 const billieColors = [
@@ -14,11 +19,15 @@ const billieColors = [
 ];
 
 class BillieDogs extends React.Component<{}, State> {
-  constructor(props: any) {
+  constructor(props: {}) {
     super(props)
     this.state = {
       dogPhoto: '',
-      breeds: []
+      breeds: [],
+      selectedBreed: undefined,
+      invalidAction: false,
+      fetchPhotoError: false,
+      fetchBreedsError: false
     }
   }
 
@@ -32,9 +41,15 @@ class BillieDogs extends React.Component<{}, State> {
       })
       .then((json) => {
         this.setState({
-          dogPhoto: json.message
+          dogPhoto: json.message,
+          fetchPhotoError: false
         });
       })
+      .catch((error) => {
+        this.setState({
+          fetchPhotoError: true
+        })
+      });
   }
 
   fetchBreeds = () => {
@@ -55,13 +70,56 @@ class BillieDogs extends React.Component<{}, State> {
           });
         }
         this.setState({
-          breeds: breeds
-        })
+          breeds: breeds,
+          fetchBreedsError: false
+        });
       })
+      .catch((error) => {
+        this.setState({
+          fetchBreedsError: true
+        });
+      });
+  }
+
+  fetchByBreed = () => {
+    if (!this.state.selectedBreed) {
+      this.setState({
+        invalidAction: true
+      });
+      return;
+    }
+
+    fetch(`https://dog.ceo/api/breed/${this.state.selectedBreed?.split('-').join('/')}/images/random`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error();
+        }
+        return response.json();
+      })
+      .then((json) => {
+        this.setState({
+          dogPhoto: json.message,
+          fetchPhotoError: false
+        });
+      })
+      .catch((error) => {
+        this.setState({
+          fetchPhotoError: true
+        })
+      });
   }
 
   handleClick = (): void => {
     this.fetchRandomDog();
+  }
+
+  handleChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
+    if (event.target.value) {
+      this.setState({
+        selectedBreed: event.target.value,
+        invalidAction: false
+      })
+    }
   }
 
   componentDidMount = (): void => {
@@ -71,24 +129,38 @@ class BillieDogs extends React.Component<{}, State> {
 
   render = (): JSX.Element => {
     const generator = (generatorFactory(billieColors))();
-    return (<div>
-      <div>
-        <img alt='dog' src={this.state.dogPhoto} />
+    return (<div className='row'>
+      <div className='row col-sm-12 justify-content-center p-3 mt-5 mb-5'>
+        {!this.state.fetchPhotoError ?
+        <div className='img-container'>
+          <img className='img-fluid border rounded shadow' alt='dog' src={this.state.dogPhoto} />
+          <h2><span>{'We ❤ our pups!'.split('').map((char, key) => {
+            const color = generator.next();
+            return <span key={key} style={{color: color.value}}>{char}</span>
+          })}</span></h2>
+        </div>
+        :
+        <div>There was a problem while fetching your billie.</div>
+        }
       </div>
-      <h2>{'We ❤ our pups!'.split('').map((char, key) => {
-        const color = generator.next();
-        return <span key={key} style={{color: color.value}}>{char}</span>
-      })}</h2>
-      <button onClick={this.fetchRandomDog}>retrieve another</button>
-      <div>
-        Or select by breed
-        <div>
-          <select>
+      <div className='row col-sm-12 justify-content-center p-3 mb-2 form-group'>
+        <button className='btn btn-primary' onClick={this.fetchRandomDog}>retrieve another</button>
+      </div>
+      <div className='row col-sm-12 justify-content-center p-3 mb-2'>
+        <div className='col-sm-3 form-group'>
+          <select className={this.state.invalidAction || this.state.fetchBreedsError ? 'form-control custom-select is-invalid' : 'form-control custom-select'} value={this.state.selectedBreed} onChange={this.handleChange}>
+            <option>Or choose a breed...</option>
             {this.state.breeds.map((breed, key) => {
               return <option key={key} value={breed}>{breed}</option>;
             })}
           </select>
-          <button>search by breed</button>
+          {this.state.invalidAction ? 
+          <span className='text-danger'>You must select a breed first.</span> 
+          : 
+          this.state.fetchBreedsError ? <span className='text-danger'>There was a problem while fetching the breeds.</span> : null }
+        </div>
+        <div className='col-sm-auto form-group'>
+          <button className='btn btn-primary' onClick={this.fetchByBreed}>get my breed!</button>
         </div>
       </div>
     </div>);
