@@ -1,0 +1,25 @@
+img {
+  max-height: 650px;
+  height: auto;
+  width: auto;
+}
+
+.img-container {
+  position: relative;
+  height: 650px;
+  min-width: 300px;
+}
+
+.img-container > h2 {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  width: 100%;
+}
+
+.img-container > h2 > span {
+  font-weight: bold;
+  background: rgb(0, 0, 0);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px;
+}

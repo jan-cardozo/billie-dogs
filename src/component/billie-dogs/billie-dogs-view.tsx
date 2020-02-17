@@ -1,6 +1,7 @@
 import React from "react";
-import { generatorFactory } from "../../utils/generator-factory";
 import './billie-dogs.css'
+import { DogPhoto } from "./dog-photo/dog-photo-view";
+import { Loading } from "./loading/loading-view";
 
 interface State {
   dogPhoto: string;
@@ -9,14 +10,8 @@ interface State {
   invalidAction: boolean;
   fetchPhotoError: boolean;
   fetchBreedsError: boolean;
+  fetchingPhoto: boolean;
 }
-
-const billieColors = [
-  '#8093FF',
-  '#FF502C',
-  '#FF9472',
-  '#FF91FF'
-];
 
 class BillieDogs extends React.Component<{}, State> {
   constructor(props: {}) {
@@ -27,29 +22,35 @@ class BillieDogs extends React.Component<{}, State> {
       selectedBreed: undefined,
       invalidAction: false,
       fetchPhotoError: false,
-      fetchBreedsError: false
+      fetchBreedsError: false,
+      fetchingPhoto: true
     }
   }
 
   fetchRandomDog = (): void => {
-    fetch('https://dog.ceo/api/breeds/image/random')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error();
-        }
-        return response.json();
-      })
-      .then((json) => {
-        this.setState({
-          dogPhoto: json.message,
-          fetchPhotoError: false
-        });
-      })
-      .catch((error) => {
-        this.setState({
-          fetchPhotoError: true
+    this.setState({
+      fetchingPhoto: true
+    }, () => {
+      fetch('https://dog.ceo/api/breeds/image/random')
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error();
+          }
+          return response.json();
         })
-      });
+        .then((json) => {
+          this.setState({
+            dogPhoto: json.message,
+            fetchPhotoError: false
+          });
+        })
+        .catch((error) => {
+          this.setState({
+            fetchPhotoError: true,
+            fetchingPhoto: false
+          })
+        });
+    });
   }
 
   fetchBreeds = () => {
@@ -89,28 +90,29 @@ class BillieDogs extends React.Component<{}, State> {
       return;
     }
 
-    fetch(`https://dog.ceo/api/breed/${this.state.selectedBreed?.split('-').join('/')}/images/random`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error();
-        }
-        return response.json();
-      })
-      .then((json) => {
-        this.setState({
-          dogPhoto: json.message,
-          fetchPhotoError: false
-        });
-      })
-      .catch((error) => {
-        this.setState({
-          fetchPhotoError: true
+    this.setState({
+      fetchingPhoto: true
+    }, () => {
+      fetch(`https://dog.ceo/api/breed/${this.state.selectedBreed?.split('-').join('/')}/images/random`)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error();
+          }
+          return response.json();
         })
-      });
-  }
-
-  handleClick = (): void => {
-    this.fetchRandomDog();
+        .then((json) => {
+          this.setState({
+            dogPhoto: json.message,
+            fetchPhotoError: false
+          });
+        })
+        .catch((error) => {
+          this.setState({
+            fetchPhotoError: true,
+            fetchingPhoto: false
+          })
+        });
+    });
   }
 
   handleChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
@@ -122,29 +124,38 @@ class BillieDogs extends React.Component<{}, State> {
     }
   }
 
+  clearLoading = (): void => {
+    this.setState({
+      fetchingPhoto: false
+    });
+  }
+
   componentDidMount = (): void => {
     this.fetchRandomDog();
     this.fetchBreeds();
   }
 
   render = (): JSX.Element => {
-    const generator = (generatorFactory(billieColors))();
     return (<div className='row'>
-      <div className='row col-sm-12 justify-content-center p-3 mt-5 mb-5'>
-        {!this.state.fetchPhotoError ?
-        <div className='img-container'>
-          <img className='img-fluid border rounded shadow' alt='dog' src={this.state.dogPhoto} />
-          <h2><span>{'We ❤ our pups!'.split('').map((char, key) => {
-            const color = generator.next();
-            return <span key={key} style={{color: color.value}}>{char}</span>
-          })}</span></h2>
-        </div>
-        :
+      <div className='row col-sm-12 justify-content-center p-3 mt-5 mb-5 photo-container'>
+        <Loading show={this.state.fetchingPhoto} />
+        {this.state.fetchPhotoError ?
         <div>There was a problem while fetching your billie.</div>
+        :
+        <DogPhoto dogPhoto={this.state.dogPhoto} clearLoading={this.clearLoading} />
         }
       </div>
       <div className='row col-sm-12 justify-content-center p-3 mb-2 form-group'>
-        <button className='btn btn-primary' onClick={this.fetchRandomDog}>retrieve another</button>
+        <button className='btn btn-primary' onClick={this.fetchRandomDog} {...this.state.fetchingPhoto ? {disabled: true} : null}>
+          {this.state.fetchingPhoto ? 
+          <span>
+            <span className='spinner-border spinner-border-sm' role='status'></span>
+            &nbsp;&nbsp;
+            <span>Fetching Your Billie!</span>
+          </span>
+          :
+          <span>Retrieve Another</span>}
+        </button>
       </div>
       <div className='row col-sm-12 justify-content-center p-3 mb-2'>
         <div className='col-sm-3 form-group'>
@@ -154,13 +165,22 @@ class BillieDogs extends React.Component<{}, State> {
               return <option key={key} value={breed}>{breed}</option>;
             })}
           </select>
-          {this.state.invalidAction ? 
-          <span className='text-danger'>You must select a breed first.</span> 
+          {this.state.invalidAction || this.state.fetchBreedsError ? 
+          <span className='text-danger'>{this.state.invalidAction ? 'You must select a breed first.' : 'There was a problem while fetching the breeds.'}</span> 
           : 
-          this.state.fetchBreedsError ? <span className='text-danger'>There was a problem while fetching the breeds.</span> : null }
+          null}
         </div>
         <div className='col-sm-auto form-group'>
-          <button className='btn btn-primary' onClick={this.fetchByBreed}>get my breed!</button>
+          <button className='btn btn-primary' onClick={this.fetchByBreed} {...this.state.fetchingPhoto ? {disabled: true} : null}>
+            {this.state.fetchingPhoto ?
+            <span>
+              <span className='spinner-border spinner-border-sm' role='status'></span>
+              &nbsp;&nbsp;
+              <span>Fetching Your Billie!</span>
+            </span>
+            :
+            <span>get my breed!</span>}
+          </button>
         </div>
       </div>
     </div>);
